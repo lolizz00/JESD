@@ -1,0 +1,1 @@
+C:\Python37\Scripts\pyuic5 H:\JESD\mw.ui -o  H:\JESD\mw.py
