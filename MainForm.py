@@ -41,6 +41,9 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
     def connectDevPushButtonClicked(self):
         id = int(self.devListComboBox.currentIndex())
 
+        if id == -1:
+            self.showErr('Нет доступных устройств!')
+            return
 
         info = None
         try:
