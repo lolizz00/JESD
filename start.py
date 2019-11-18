@@ -1,5 +1,8 @@
-from MainForm import MW
-from PyQt5 import QtWidgets
+
+import sys
+
+
+from  ConsoleApp import ConsoleApp
 
 # --- Нормальный вывод ошибок
 def log_uncaught_exceptions(ex_cls, ex, tb):
@@ -18,11 +21,17 @@ sys.excepthook = log_uncaught_exceptions
 
 def start():
 
-    app = QtWidgets.QApplication(sys.argv)
-    mw = MW()
-    mw.show()
-    sys.exit(app.exec_())
-
+    if len(sys.argv) == 1:
+        from MainForm import MW
+        from PyQt5 import QtWidgets
+        app = QtWidgets.QApplication(sys.argv)
+        mw = MW()
+        mw.show()
+        sys.exit(app.exec_())
+    else:
+        app = ConsoleApp()
+        ret = app.handleArgs(sys.argv[1:])
+        sys.exit(ret)
 
 
 if __name__ == '__main__':

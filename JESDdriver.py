@@ -68,9 +68,11 @@ class JESD:
     def LEDBlink(self):
         gpio1 = self.chip.gpio1
 
-        gpio1.value = self.invertPin(gpio1.value)
-        time.sleep(0.1)
-        gpio1.value = self.invertPin(gpio1.value)
+        for i in range(4):
+            gpio1.value = self.invertPin(gpio1.value)
+            time.sleep(0.5)
+            gpio1.value = self.invertPin(gpio1.value)
+            time.sleep(1)
 
     def getListStr(self):
         lst = cp2130.list()
@@ -86,6 +88,11 @@ class JESD:
 
     def reset(self):
         self.write(0x0, 0x80) # сброс, 7 бит
+
+    def enableWrite(self):
+        self.write(0x1FFD, 0x0)
+        self.write(0x1FFE, 0x0)
+        self.write(0x1FFF, 0x53)
 
     def connect(self, id):
 

@@ -83,6 +83,7 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         vals = []
 
         self.dev.reset()
+        self.dev.enableWrite()
         self.dev.set4Wire()
 
         try:
@@ -94,6 +95,10 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
                 _line = line
                 line = line.replace('\n', '')
                 line = line.replace('0x', '')
+
+                if line == '':
+                    continue
+
                 line = line.split('\t')
                 line = line[1]
                 line = int(line, 16)
@@ -109,7 +114,8 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
                     continue
 
                 # пропускаем сбросы
-                if regAddr == 0x0:
+                skip = [0x0, 0x1ffd, 0x1ffe, 0x1fff, 0x006]
+                if regAddr in skip:
                     continue
 
                 self.dev.write(regAddr, regVal)
