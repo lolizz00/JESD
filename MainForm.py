@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from mw import Ui_MainWindow
-
+from version import version_logo
 from PyQt5.QtCore import *
 from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import *
@@ -13,6 +13,31 @@ from JESDdriver import JESD
 class MW(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
+
+    def resetPushButtonClicked(self):
+        self.dev.reset()
+        self.dev.set4Wire()
+        self.dev.enableWrite()
+
+
+        self.writeLog('Устройство сброшено.')
+
+    def getLastFile(self):
+
+        try:
+            f = open('lf', 'r')
+            line = f.readline()
+            f.close()
+
+            return line
+        except:
+            return ""
+
+    def saveLastFile(self, path):
+        f = open('lf', 'w')
+        f.write(path)
+        f.close()
+
     def refrDevListPushButtonClicked(self):
         lst = self.dev.getListStr()
         self.devListComboBox.clear()
@@ -21,9 +46,35 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def clearStatus(self):
         self.dev.clearStatus()
+        self.writeLog('Статус устройства очищен.')
+        self.checkStatus()
+
+
+    def checkStatusQuite(self):
+        stat1 = self.dev.checkStatus(1)
+        stat2 = self.dev.checkStatus(2)
+
+        self.pll1Label.setText(stat1)
+        self.pll2Label.setText(stat2)
+
+        if stat1 != "OK":
+            self.pll1Label.setStyleSheet("color: red")
+        else:
+            self.pll1Label.setStyleSheet("color: black")
+
+        if stat2 != "OK":
+            self.pll2Label.setStyleSheet("color: red")
+        else:
+            self.pll2Label.setStyleSheet("color: black")
+
 
     def checkStatus(self):
+
+        self.writeLog('Проверяем статус PLL...')
         stat1 = self.dev.checkStatus(1)
+
+        self.writeLog('PLL1 status: ' + stat1)
+
         self.pll1Label.setText(stat1)
         if stat1 != "OK":
             self.pll1Label.setStyleSheet("color: red")
@@ -31,6 +82,8 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
             self.pll1Label.setStyleSheet("color: black")
 
         stat2 = self.dev.checkStatus(2)
+        self.writeLog('PLL2 status: ' + stat2)
+
         self.pll2Label.setText(stat2)
         if stat2 != "OK":
             self.pll2Label.setStyleSheet("color: red")
@@ -39,42 +92,85 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     def connectDevPushButtonClicked(self):
-        id = int(self.devListComboBox.currentIndex())
 
-        if id == -1:
-            self.showErr('Нет доступных устройств!')
-            return
 
-        info = None
-        try:
-            info = self.dev.connect(id)
-        except Exception as e:
-            self.showErr('Ошибка при подключении: ' + str(e))
-            self.writeLog('Ошибка при подключении: ' + str(e))
-            return
+        if self.connectDevPushButton.text() == 'Подключиться':
 
-        self.writeLog('Подлючено.')
-        self.writeLog('Product ID:' + info)
-        self.disableAll(False)
+            id = int(self.devListComboBox.currentIndex())
 
-    def disconnectDevPushButtonClicked(self):
-        self.dev.disconnect()
-        self.writeLog('Отключено.')
-        self.disableAll(True)
+            if id == -1:
+                self.showErr('Нет доступных устройств!')
+                return
+
+            info = None
+            try:
+                info = self.dev.connect(id)
+                self.checkStatus()
+            except Exception as e:
+                self.showErr('Ошибка при подключении: ' + str(e))
+                self.writeLog('Ошибка при подключении: ' + str(e))
+                return
+
+            self.writeLog('Подключено к устройству #' + str(id) + ' ' + str(self.dev.getListStr()[id]))
+            #self.writeLog('Product ID:' + info)
+            self.disableAll(False)
+            self.connectDevPushButton.setText('Отключиться')
+
+
+        else:
+            self.dev.disconnect()
+            self.writeLog('Отключено.')
+            self.disableAll(True)
+            self.connectDevPushButton.setText('Подключиться')
+
 
     def LEDDevPushButtonClicked(self):
         self.dev.LEDBlink()
 
+
+    def autoStatCheckBoxHandle(self):
+        if self.autoStatCheckBox.isChecked():
+            self.stTimer.start(5000)
+        else:
+            self.stTimer.stop()
+
+
     def __init__(self):
         super(MW, self).__init__()
         self.setupUi(self)
+
+        self.setWindowTitle('JESD_8SYNCV01 ver: ' + version_logo)
+
         self.setCentralWidget(self.cw)
         self.initSlots()
         self.dev = JESD()
 
+        self.fileLineEdit.setText(self.getLastFile())
+
+        # проверка, что устройство не отвалилось
+        self.timer = QtCore.QTimer()
+        self.timer.start(5000)
+        self.timer.timeout.connect(self.checkDev)
+
+
+        # таймер для статуса
+        self.stTimer = QtCore.QTimer()
+        self.stTimer.timeout.connect(self.checkStatusQuite)
 
 
         self.refrDevListPushButtonClicked()
+
+
+    def checkDev(self):
+        # гы, пойдет
+        if self.connectDevPushButton.text() == 'Отключиться':
+            try:
+                self.dev.read(0x0)
+            except:
+                txt = 'Устройство было неожиданно отключено'
+                self.writeLog(txt)
+                self.showErr(txt)
+                self.connectDevPushButtonClicked()
 
     def parseFile(self, fname):
 
@@ -86,12 +182,24 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         self.dev.enableWrite()
         self.dev.set4Wire()
 
-        try:
-            fd = open(fname, 'r')
 
+        sch = 0
+
+        try:
+
+
+            fd = open(fname, 'r')
             flg = True
 
+            self.writeLog('Запись файла \'' + fname + '\' ...')
+
+
+            self.saveLastFile(fname)
+
             for line in fd:
+
+                sch = sch + 1
+
                 _line = line
                 line = line.replace('\n', '')
                 line = line.replace('0x', '')
@@ -122,26 +230,29 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
                 tmp = self.dev.read(regAddr)
 
                 if tmp != regVal:
-                    self.writeLog('Предупреждение: Регистр ' + hex(regAddr) + ' после записи значения ' + hex(regVal) + ' равен ' + hex(tmp))
-                    self.writeLog('Строка: \"' + _line.replace('\n', '') + "\"")
+                    self.writeLog('Предупреждение: Регистр ' + hex(regAddr) + ' после записи значения ' + hex(regVal) + ' равен ' + hex(tmp) +  ' Строка: ' + str(sch))
                     flg = False
 
             fd.close()
 
+            self.clearStatus()
+
             if flg:
                 self.writeLog('Запись прошла без ошибок!')
 
-            self.writeLog('Запись завершена.')
 
-        except:
-            self.writeLog('Неверный файл!')
+            self.writeLog('Запись файла \'' + fname + '\' завершена.')
+
+        except Exception as e:
+            self.writeLog('Неверный файл! ' + "Ошибка: '" + str(e) + "' на строке " + str(sch))
             return None
 
 
         return [regs, vals]
 
     def selectFilePushButtonClicked(self):
-        self.fileLineEdit.setText(QFileDialog.getOpenFileName()[0])
+        filt = "Text(*.txt);;All(*.*)"
+        self.fileLineEdit.setText(QFileDialog.getOpenFileName(filter=filt)[0])
 
     def disableAll(self, state):
         state = not state
@@ -149,11 +260,13 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         self.writeFilePushButton.setEnabled(state)
         self.regReadPushButton.setEnabled(state)
         self.regWritePushButton.setEnabled(state)
-        self.disconnectDevPushButton.setEnabled(state)
+#        self.disconnectDevPushButton.setEnabled(state)
         self.LEDDevPushButton.setEnabled(state)
-        self.connectDevPushButton.setEnabled(not state)
+        #self.connectDevPushButton.setEnabled(not state)
         self.clearPllPushButton.setEnabled(state)
         self.readPllPushButton.setEnabled(state)
+        self.resetPushButton.setEnabled(state)
+        self.autoStatCheckBox.setEnabled(state)
 
 
     def regWritePushButtonClicked(self):
@@ -162,7 +275,7 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
             addr = int(self.regAddrLineEdit.text(), 16)
             val = int(self.regValLineEdit.text(), 16)
             self.dev.write(addr, val)
-            self.writeLog("Успешно записано.")
+            self.writeLog("В регистр  " + hex(addr) + " записано  " + hex(val))
         except:
            self.writeLog('Неверный формат!')
 
@@ -171,7 +284,7 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
             addr = int(self.regAddrLineEdit.text(), 16)
             val = self.dev.read(addr)
             self.regValLineEdit.setText(hex(val).replace('0x', ''))
-            self.writeLog("Успешно считано.")
+            self.writeLog("Из регистра " + hex(addr) + " считано " + hex(val))
         except:
             self.writeLog('Неверный формат!')
 
@@ -198,12 +311,18 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.refrDevListPushButton.clicked.connect(self.refrDevListPushButtonClicked)
         self.connectDevPushButton.clicked.connect(self.connectDevPushButtonClicked)
-        self.disconnectDevPushButton.clicked.connect(self.disconnectDevPushButtonClicked)
+        #self.disconnectDevPushButton.clicked.connect(self.disconnectDevPushButtonClicked)
         self.LEDDevPushButton.clicked.connect(self.LEDDevPushButtonClicked)
 
 
         self.readPllPushButton.clicked.connect(self.checkStatus)
         self.clearPllPushButton.clicked.connect(self.clearStatus)
+
+
+        self.resetPushButton.clicked.connect(self.resetPushButtonClicked)
+
+
+        self.autoStatCheckBox.stateChanged.connect(self.autoStatCheckBoxHandle)
 
 
 
@@ -220,3 +339,6 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
             self.logTextEdit.setText(msg)
         else:
             self.logTextEdit.setText(old_text + '\n' + msg)
+
+
+        self.logTextEdit.moveCursor(QtGui.QTextCursor.End)

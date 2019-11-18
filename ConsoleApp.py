@@ -1,6 +1,7 @@
 from JESDdriver import JESD
 import sys
 
+from version import version_logo
 
 class ConsoleApp:
 
@@ -14,6 +15,7 @@ class ConsoleApp:
         #  вывод помощи, OK
         if argv[0] == '-h' or argv[0] == '--help':
             print("'-h' или '--help' --- Вывод помощи.")
+            print("'-v' или '--ver' --- Вывод текущей версии. ")
             print("'-l' или '--list' --- Вывод списка доступных устройств")
             print("'-d [номер]' или  '--device [номер]' --- Необязательный аргумент, по умолчанию 0. Выбор устройства для работы.")
             print("'-st' или '--status' --- Вывод статуса устройства. Пример вызова: `start.py -d 1 -st` или `start.py  --status`.")
@@ -25,6 +27,10 @@ class ConsoleApp:
             print("'-wr [адрес(hex)] [значение(hex)]' или '--write  [адрес(hex)] [значение(hex)]' --- Запись в регистр. Пример вызова: `start.py -d 0 -wr 0x0 0x0` или `start.py --write 0xA 0xFF`.")
 
             return 0
+
+        if argv[0] == '-v' or argv[0] == '--ver':
+           print('Version: ' + version_logo)
+           return 0
 
         #  вывод списка устройств, OK
         if argv[0] == '-l' or argv[0] == '--list':
