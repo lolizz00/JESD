@@ -24,9 +24,9 @@ def start():
     if len(sys.argv) == 1:
         from MainForm import MW
         from PyQt5 import QtWidgets
+
         app = QtWidgets.QApplication(sys.argv)
         mw = MW()
-        mw.show()
         sys.exit(app.exec_())
     else:
         app = ConsoleApp()

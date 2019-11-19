@@ -7,12 +7,32 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QSystemTrayIcon
 from datetime import datetime
-
 from JESDdriver import JESD
+from selectForm import SW
+
+
 
 class MW(QtWidgets.QMainWindow, Ui_MainWindow):
 
+    def recPushButtonClicked(self):
+        self.dev.disconnect()
+        self.hide()
+        self.sw.show()
 
+    def selectSlot(self, ind):
+        info = None
+        try:
+            info = self.dev.connect(ind)
+            self.checkStatus()
+        except Exception as e:
+            self.showErr('Ошибка при подключении: ' + str(e))
+            self.writeLog('Ошибка при подключении: ' + str(e))
+
+            return
+
+        self.writeLog('Подключено к устройству #' + str(ind) + ' ' + str(self.dev.getListStr()[ind]))
+
+        self.show()
 
     def resetPushButtonClicked(self):
         self.dev.reset()
@@ -28,7 +48,6 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
             f = open('lf', 'r')
             line = f.readline()
             f.close()
-
             return line
         except:
             return ""
@@ -38,17 +57,10 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         f.write(path)
         f.close()
 
-    def refrDevListPushButtonClicked(self):
-        lst = self.dev.getListStr()
-        self.devListComboBox.clear()
-        self.devListComboBox.addItems(lst)
-
-
     def clearStatus(self):
         self.dev.clearStatus()
         self.writeLog('Статус устройства очищен.')
         self.checkStatus()
-
 
     def checkStatusQuite(self):
         stat1 = self.dev.checkStatus(1)
@@ -66,7 +78,6 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
             self.pll2Label.setStyleSheet("color: red")
         else:
             self.pll2Label.setStyleSheet("color: black")
-
 
     def checkStatus(self):
 
@@ -90,50 +101,11 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             self.pll2Label.setStyleSheet("color: black")
 
-
-    def connectDevPushButtonClicked(self):
-
-
-        if self.connectDevPushButton.text() == 'Подключиться':
-
-            id = int(self.devListComboBox.currentIndex())
-
-            if id == -1:
-                self.showErr('Нет доступных устройств!')
-                return
-
-            info = None
-            try:
-                info = self.dev.connect(id)
-                self.checkStatus()
-            except Exception as e:
-                self.showErr('Ошибка при подключении: ' + str(e))
-                self.writeLog('Ошибка при подключении: ' + str(e))
-                return
-
-            self.writeLog('Подключено к устройству #' + str(id) + ' ' + str(self.dev.getListStr()[id]))
-            #self.writeLog('Product ID:' + info)
-            self.disableAll(False)
-            self.connectDevPushButton.setText('Отключиться')
-
-
-        else:
-            self.dev.disconnect()
-            self.writeLog('Отключено.')
-            self.disableAll(True)
-            self.connectDevPushButton.setText('Подключиться')
-
-
-    def LEDDevPushButtonClicked(self):
-        self.dev.LEDBlink()
-
-
     def autoStatCheckBoxHandle(self):
         if self.autoStatCheckBox.isChecked():
             self.stTimer.start(5000)
         else:
             self.stTimer.stop()
-
 
     def __init__(self):
         super(MW, self).__init__()
@@ -147,6 +119,8 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.fileLineEdit.setText(self.getLastFile())
 
+
+        self.toolBox.setCurrentIndex(0)
         # проверка, что устройство не отвалилось
         self.timer = QtCore.QTimer()
         self.timer.start(5000)
@@ -157,20 +131,20 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stTimer = QtCore.QTimer()
         self.stTimer.timeout.connect(self.checkStatusQuite)
 
+        self.sw = SW()
+        self.sw.selectSignal.connect(self.selectSlot)
 
-        self.refrDevListPushButtonClicked()
-
+        self.sw.show()
 
     def checkDev(self):
-        # гы, пойдет
-        if self.connectDevPushButton.text() == 'Отключиться':
+        if not self.dev.isConnected()  and not self.isHidden():
             try:
                 self.dev.read(0x0)
             except:
                 txt = 'Устройство было неожиданно отключено'
                 self.writeLog(txt)
                 self.showErr(txt)
-                self.connectDevPushButtonClicked()
+                self.recPushButtonClicked()
 
     def parseFile(self, fname):
 
@@ -254,21 +228,6 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         filt = "Text(*.txt);;All(*.*)"
         self.fileLineEdit.setText(QFileDialog.getOpenFileName(filter=filt)[0])
 
-    def disableAll(self, state):
-        state = not state
-
-        self.writeFilePushButton.setEnabled(state)
-        self.regReadPushButton.setEnabled(state)
-        self.regWritePushButton.setEnabled(state)
-#        self.disconnectDevPushButton.setEnabled(state)
-        self.LEDDevPushButton.setEnabled(state)
-        #self.connectDevPushButton.setEnabled(not state)
-        self.clearPllPushButton.setEnabled(state)
-        self.readPllPushButton.setEnabled(state)
-        self.resetPushButton.setEnabled(state)
-        self.autoStatCheckBox.setEnabled(state)
-
-
     def regWritePushButtonClicked(self):
 
         try:
@@ -288,11 +247,9 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         except:
             self.writeLog('Неверный формат!')
 
-
     def writeFile(self):
         fname = self.fileLineEdit.text()
         self.parseFile(fname)
-
 
     def showMsg(self, text):
         QtWidgets.QMessageBox.information(self, 'Сообщение', text)
@@ -304,27 +261,12 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         self.clearLogPushButton.clicked.connect(self.clearLog)
         self.selectFilePushButton.clicked.connect(self.selectFilePushButtonClicked)
         self.writeFilePushButton.clicked.connect(self.writeFile)
-
         self.regWritePushButton.clicked.connect(self.regWritePushButtonClicked)
         self.regReadPushButton.clicked.connect(self.regReadPushButtonClicked)
-
-
-        self.refrDevListPushButton.clicked.connect(self.refrDevListPushButtonClicked)
-        self.connectDevPushButton.clicked.connect(self.connectDevPushButtonClicked)
-        #self.disconnectDevPushButton.clicked.connect(self.disconnectDevPushButtonClicked)
-        self.LEDDevPushButton.clicked.connect(self.LEDDevPushButtonClicked)
-
-
         self.readPllPushButton.clicked.connect(self.checkStatus)
         self.clearPllPushButton.clicked.connect(self.clearStatus)
-
-
-        self.resetPushButton.clicked.connect(self.resetPushButtonClicked)
-
-
         self.autoStatCheckBox.stateChanged.connect(self.autoStatCheckBoxHandle)
-
-
+        self.recPushButton.clicked.connect(self.recPushButtonClicked)
 
     def clearLog(self):
         self.logTextEdit.setText('')

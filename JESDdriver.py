@@ -47,9 +47,10 @@ class JESD:
 
 
     def isConnected(self):
-        if self.handle:
+        try:
+            self.read(0x06)
             return True
-        else:
+        except:
             return False
 
     def __init__(self):
@@ -68,7 +69,7 @@ class JESD:
     def LEDBlink(self):
         gpio1 = self.chip.gpio1
 
-        for i in range(4):
+        for i in range(2):
             gpio1.value = self.invertPin(gpio1.value)
             time.sleep(0.5)
             gpio1.value = self.invertPin(gpio1.value)

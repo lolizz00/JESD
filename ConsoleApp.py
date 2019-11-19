@@ -83,10 +83,10 @@ class ConsoleApp:
         # запись в файл
         elif argv[0 + devFlg] == '-ld' or argv[0 + devFlg] == '--load':
 
+
             self.dev.reset()
             self.dev.enableWrite()
             self.dev.set4Wire()
-
 
 
             try:
