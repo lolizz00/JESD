@@ -142,7 +142,10 @@ class ConsoleApp:
                 return 0
 
             except Exception as e:
-                print('Неверный файл! ' + "Ошибка: '" + str(e)  + "' на строке " + str(sch))
+                if sch:
+                    print('Неверный файл! ' + "Ошибка: '" + str(e) + "' на строке " + str(sch))
+                else:
+                    print('Неверный файл! ' + "Ошибка: '" + str(e))
                 return -1
 
         # мигнуть светодиодом

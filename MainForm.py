@@ -218,7 +218,10 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
             self.writeLog('Запись файла \'' + fname + '\' завершена.')
 
         except Exception as e:
-            self.writeLog('Неверный файл! ' + "Ошибка: '" + str(e) + "' на строке " + str(sch))
+            if sch:
+                self.writeLog('Неверный файл! ' + "Ошибка: '" + str(e) + "' на строке " + str(sch))
+            else:
+                self.writeLog('Неверный файл! ' + "Ошибка: " + str(e))
             return None
 
 
@@ -267,6 +270,7 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         self.clearPllPushButton.clicked.connect(self.clearStatus)
         self.autoStatCheckBox.stateChanged.connect(self.autoStatCheckBoxHandle)
         self.recPushButton.clicked.connect(self.recPushButtonClicked)
+        self.resetPushButton.clicked.connect(self.resetPushButtonClicked)
 
     def clearLog(self):
         self.logTextEdit.setText('')

@@ -31,6 +31,7 @@ def start():
     else:
         app = ConsoleApp()
         ret = app.handleArgs(sys.argv[1:])
+        print(ret)
         sys.exit(ret)
 
 

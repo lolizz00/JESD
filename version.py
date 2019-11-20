@@ -1,2 +1,2 @@
-version_full  = "19.11.2019 19:13:58"
-version_logo  = "20191119"
+version_full  = "20.11.2019 11:27:08"
+version_logo  = "20191120"
