@@ -21,6 +21,7 @@ sys.excepthook = log_uncaught_exceptions
 
 def start():
 
+    # если нет аргументов, запускаемся в GUI
     if len(sys.argv) == 1:
         from MainForm import MW
         from PyQt5 import QtWidgets
@@ -28,11 +29,11 @@ def start():
         app = QtWidgets.QApplication(sys.argv)
         mw = MW()
         sys.exit(app.exec_())
-    else:
+    else:  # есть хотя бы один аргумент - запускаем в консольном режиме
         app = ConsoleApp()
         ret = app.handleArgs(sys.argv[1:])
         print(ret)
-        sys.exit(ret)
+        sys.exit(ret) # возвращаем системе то, что вернула программа
 
 
 if __name__ == '__main__':
