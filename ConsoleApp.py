@@ -87,18 +87,13 @@ class ConsoleApp:
         # если непонятно, смотри MainForm::parseFile
         elif argv[0 + devFlg] == '-ld' or argv[0 + devFlg] == '--load':
 
-            self.dev.reset()
-            self.dev.enableWrite()
+
             self.dev.set4Wire()
 
-
             try:
-
                 sch = 0
                 fname = argv[1 + devFlg]
                 fd = open(fname, 'r')
-
-                flg = True
 
                 for line in fd:
                     sch = sch + 1
@@ -116,25 +111,40 @@ class ConsoleApp:
                     regAddr = line >> 8
                     regVal = line & 0xFF
 
-                    # хз, нв всякий случай
-                    if regAddr & 0x8000:
-                        print('Пропускаем чтение из регистра ' + hex(regAddr))
+
+                    self.dev.write(regAddr, regVal)
+
+
+                fd.seek(0)
+
+                flg = True
+
+                for line in fd:
+                    _line = line
+                    line = line.replace('\n', '')
+                    line = line.replace('0x', '')
+
+                    if line == '':
                         continue
+
+                    line = line.split('\t')
+                    line = line[1]
+                    line = int(line, 16)
+
+                    regAddr = line >> 8
+                    regVal = line & 0xFF
 
                     # пропускаем сбросы
                     skip = [0x0, 0x1ffd, 0x1ffe, 0x1fff, 0x006]
                     if regAddr in skip:
                         continue
 
-
-                    self.dev.write(regAddr, regVal)
                     tmp = self.dev.read(regAddr)
 
                     if tmp != regVal:
                         print('Предупреждение: Регистр ' + hex(regAddr) + ' после записи значения ' + hex(
                             regVal) + ' равен ' + hex(tmp))
                         flg = False
-
 
                 fd.close()
 

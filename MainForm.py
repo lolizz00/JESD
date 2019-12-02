@@ -80,11 +80,19 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         self.pll2Label.setText(stat2)
 
         if stat1 != "OK":
+            self.tTimer.stop()
+            self.autoStatCheckBox.setChecked(False)
+            self.writeLog('Обнаружена ошибка, автообновление статуса остановлено')
+
             self.pll1Label.setStyleSheet("color: red") # цвет надписи
         else:
             self.pll1Label.setStyleSheet("color: black")
 
         if stat2 != "OK":
+            self.tTimer.stop()
+            self.autoStatCheckBox.setChecked(False)
+            self.writeLog('Обнаружена ошибка, автообновление статуса остановлено')
+
             self.pll2Label.setStyleSheet("color: red")
         else:
             self.pll2Label.setStyleSheet("color: black")
@@ -172,13 +180,9 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
         regs = []
         vals = []
 
-        # заново вытсавляем настройки
-        self.dev.reset()
-        self.dev.enableWrite()
+
+        # перетыкаемся в нужный режим
         self.dev.set4Wire()
-
-
-        sch = 0
 
         try:
 
@@ -192,10 +196,9 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
             self.saveLastFile(fname)
 
             # бежим по линиям
+            sch = 0
             for line in fd:
-
                 sch = sch + 1
-
                 _line = line
                 line = line.replace('\n', '')
                 line = line.replace('0x', '')
@@ -215,27 +218,41 @@ class MW(QtWidgets.QMainWindow, Ui_MainWindow):
                 # последний байт - значение регистра
                 regVal = line & 0xFF
 
+                self.dev.write(regAddr, regVal)
 
-                # хз, нв всякий случай
-                if regAddr & 0x8000:
-                    self.writeLog('Пропускаем чтение из регистра ' + hex(regAddr))
+            fd.seek(0)
+
+            # проверяем, что все было записано
+
+            for line in fd:
+
+                _line = line
+                line = line.replace('\n', '')
+                line = line.replace('0x', '')
+
+                if line == '':
                     continue
 
-                # пропускаем сбросы и readonly регистры
+                line = line.split('\t')
+                line = line[1]
+                line = int(line, 16)
+
+                regAddr = line >> 8
+                regVal = line & 0xFF
+
                 skip = [0x0, 0x1ffd, 0x1ffe, 0x1fff, 0x006]
                 if regAddr in skip:
                     continue
 
-                # пишем регистры
-                self.dev.write(regAddr, regVal)
-
-                # проверяем, что оно записалось
                 tmp = self.dev.read(regAddr)
                 if tmp != regVal:
-                    self.writeLog('Предупреждение: Регистр ' + hex(regAddr) + ' после записи значения ' + hex(regVal) + ' равен ' + hex(tmp) +  ' Строка: ' + str(sch))
-                    flg = False # в ходе записи была ошибка
+                    self.writeLog('Предупреждение: Регистр ' + hex(regAddr) + ' после записи значения ' + hex(
+                        regVal) + ' равен ' + hex(tmp) + ' Строка: ' + str(sch))
+                    flg = False  # в ходе записи была ошибка
 
             fd.close()
+
+
 
             # в конце заново читаем статус после настройки
             self.clearStatus()
